@@ -253,7 +253,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
     </div>
     <div class="setup-step">
       <div class="setup-step-num">STEP 4</div>
-      <p>Go to <strong>Authentication</strong> &rarr; Get started &rarr; Enable <strong>Google</strong> sign-in. Then in Firestore &rarr; Rules, paste:<br>
+      <p>Go to <strong>Authentication</strong> &rarr; Get started &rarr; Enable <strong>Google</strong> sign-in. Then go to <strong>Authentication &rarr; Settings &rarr; Authorized domains</strong> and click <strong>Add domain</strong> &rarr; add your GitHub Pages URL exactly as: <code>YOUR-USERNAME.github.io</code> (no https, no /leaderlog). Then in Firestore &rarr; Rules, paste:<br>
       <code>rules_version='2'; service cloud.firestore { match /databases/{db}/documents { match /users/{uid}/{doc=**} { allow read,write: if request.auth.uid == uid; } } }</code></p>
     </div>
     <div class="setup-step">
@@ -421,7 +421,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 // ── PLAN DATA ──────────────────────────────────────────────
 const PLAN_START = new Date('2026-03-09');
@@ -533,6 +533,18 @@ function checkSetup(){
     const app=initializeApp(config);
     db=getFirestore(app);
     auth=getAuth(app);
+
+    // Handle redirect sign-in result on page load (fires after Google redirects back)
+    getRedirectResult(auth).then(result=>{
+      if(result&&result.user){
+        showToast('Signed in as '+result.user.displayName);
+      }
+    }).catch(e=>{
+      if(e.code!=='auth/no-current-user'){
+        showToast('Sign-in error: '+e.message);
+      }
+    });
+
     onAuthStateChanged(auth,user=>{
       currentUser=user;
       updateUserUI(user);
@@ -609,8 +621,9 @@ window.handleSignIn=async function(){
   }
   try{
     const provider=new GoogleAuthProvider();
-    await signInWithPopup(auth,provider);
-  }catch(e){ showToast('Sign-in failed. Try again.'); }
+    showToast('Redirecting to Google sign-in...');
+    await signInWithRedirect(auth,provider);
+  }catch(e){ showToast('Sign-in error: '+e.message); }
 };
 
 // ── STORAGE: Firebase + localStorage fallback ──────────────
