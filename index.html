@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LeaderLog">
+<meta name="theme-color" content="#c49a3c">
+<title>Leadership Journal — Lakshman</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:#1a1208;--paper:#faf6f0;--cream:#f2ebe0;--gold:#c49a3c;
+  --gold-light:#e8c97a;--muted:#8a7a6a;--border:#d9cfc0;
+  --green:#2d6a4f;--amber:#e07b39;--red:#c0392b;--card:#fffdf8;
+  --sage:#4a7c59;--violet:#5a4a8a;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;padding-bottom:calc(60px + var(--safe-bot));}
+
+/* SYNC STATUS BAR */
+#syncBar{position:fixed;top:0;left:0;right:0;z-index:200;height:3px;background:var(--gold);transform:scaleX(0);transform-origin:left;transition:transform 0.4s ease;}
+#syncBar.syncing{transform:scaleX(0.7);background:var(--amber);}
+#syncBar.synced{transform:scaleX(1);background:var(--green);}
+#syncBar.error{transform:scaleX(1);background:var(--red);}
+
+/* FIREBASE SETUP OVERLAY */
+#setupOverlay{position:fixed;inset:0;background:var(--ink);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px;}
+#setupOverlay.hidden{display:none;}
+.setup-box{background:#2a1e10;border:1px solid var(--gold);border-radius:16px;padding:32px;max-width:520px;width:100%;}
+.setup-box h2{font-family:'Playfair Display',serif;color:var(--gold-light);font-size:1.4rem;margin-bottom:8px;}
+.setup-box p{color:var(--muted);font-size:0.82rem;line-height:1.7;margin-bottom:16px;}
+.setup-step{background:#1a1208;border-radius:8px;padding:14px 16px;margin-bottom:12px;border-left:3px solid var(--gold);}
+.setup-step-num{font-family:'DM Mono',monospace;color:var(--gold);font-size:0.72rem;font-weight:600;margin-bottom:4px;}
+.setup-step p{margin-bottom:0;font-size:0.8rem;}
+.setup-step a{color:var(--gold-light);text-decoration:underline;}
+.setup-step code{background:#0d0a06;color:#e8c97a;padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:0.78rem;}
+.config-input{width:100%;background:#0d0a06;border:1px solid var(--muted);border-radius:8px;padding:12px;color:#e8c97a;font-family:'DM Mono',monospace;font-size:0.75rem;resize:vertical;min-height:160px;margin:10px 0;}
+.config-input:focus{outline:none;border-color:var(--gold);}
+.setup-btn{background:var(--gold);color:var(--ink);border:none;padding:12px 28px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;width:100%;margin-top:8px;transition:all 0.2s;}
+.setup-btn:hover{background:var(--gold-light);}
+.setup-error{color:var(--red);font-size:0.78rem;margin-top:8px;display:none;}
+
+/* HEADER */
+.header{background:var(--ink);padding:16px 20px;padding-top:calc(16px + var(--safe-top));display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;border-bottom:3px solid var(--gold);}
+.header-left h1{font-family:'Playfair Display',serif;color:var(--gold-light);font-size:1.2rem;}
+.header-left p{color:var(--muted);font-size:0.68rem;margin-top:2px;font-weight:300;letter-spacing:0.8px;text-transform:uppercase;}
+.header-right{display:flex;gap:8px;align-items:center;}
+.sync-indicator{font-size:0.68rem;color:var(--muted);font-family:'DM Mono',monospace;display:flex;align-items:center;gap:4px;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
+.sync-dot.online{background:var(--green);animation:pulse 2s infinite;}
+.sync-dot.syncing{background:var(--amber);animation:pulse 0.5s infinite;}
+.sync-dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+/* BOTTOM NAV — mobile-first */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--ink);border-top:2px solid var(--gold);display:flex;padding-bottom:var(--safe-bot);z-index:100;}
+.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.65rem;font-weight:500;transition:all 0.2s;gap:3px;}
+.bnav-btn.active{color:var(--gold);}
+.bnav-btn .bicon{font-size:1.1rem;}
+
+.main{max-width:1200px;margin:0 auto;padding:20px 16px;}
+
+/* DATE NAV */
+.date-nav{display:flex;align-items:center;gap:10px;margin-bottom:20px;background:var(--card);border:1px solid var(--border);padding:10px 14px;border-radius:8px;flex-wrap:wrap;}
+.date-nav button{background:var(--cream);border:1px solid var(--border);width:32px;height:32px;border-radius:4px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.date-nav button:hover{background:var(--gold);color:white;}
+.date-nav input[type="date"]{font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;border:none;background:transparent;color:var(--ink);cursor:pointer;min-width:0;flex:1;}
+.day-label{font-family:'Playfair Display',serif;font-size:0.9rem;color:var(--gold);display:none;}
+@media(min-width:600px){.day-label{display:inline;}}
+.day-focus{margin-left:auto;font-size:0.72rem;color:var(--muted);font-weight:500;background:var(--cream);padding:3px 10px;border-radius:20px;border:1px solid var(--border);white-space:nowrap;}
+
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.card-header{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;}
+.card-header .icon{width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;}
+.icon-morning{background:#fff3cd;}.icon-office{background:#d4edda;}.icon-evening{background:#cce5ff;}
+.icon-journal{background:#f8d7da;}.icon-people{background:#e2d9f3;}.icon-lab{background:#d1ecf1;}
+.icon-family{background:#fdebd0;}.icon-teach{background:#e8d5f5;}.icon-home{background:#fff3cd;}.icon-plan{background:#d6eaf8;}
+.card-header h3{font-size:0.78rem;font-weight:600;letter-spacing:0.3px;text-transform:uppercase;color:var(--ink);}
+.card-header .time-label{margin-left:auto;font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);white-space:nowrap;}
+.card-body{padding:12px 16px;}
+
+/* BLOCKS */
+.block-item{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-bottom:1px solid var(--cream);}
+.block-item:last-child{border-bottom:none;}
+.block-time{font-family:'DM Mono',monospace;font-size:0.66rem;color:var(--muted);min-width:72px;padding-top:2px;flex-shrink:0;}
+.block-info{flex:1;min-width:0;}
+.block-title{font-size:0.8rem;font-weight:500;color:var(--ink);margin-bottom:2px;}
+.block-desc{font-size:0.7rem;color:var(--muted);line-height:1.4;}
+.adherence-toggle{display:flex;gap:5px;align-items:center;flex-shrink:0;}
+.adh-btn{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:white;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-weight:700;touch-action:manipulation;}
+.adh-btn.done{background:var(--green);border-color:var(--green);color:white;}
+.adh-btn.partial{background:var(--amber);border-color:var(--amber);color:white;}
+.adh-btn.missed{background:var(--red);border-color:var(--red);color:white;}
+
+.monthly-tag{display:inline-block;background:#f0e6ff;color:var(--violet);font-size:0.58rem;font-weight:600;padding:1px 5px;border-radius:8px;margin-left:5px;letter-spacing:0.3px;vertical-align:middle;}
+
+/* FORMS */
+.journal-field{width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:0.82rem;color:var(--ink);background:white;resize:vertical;min-height:62px;line-height:1.6;margin-bottom:10px;transition:border-color 0.2s;}
+.journal-field:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(196,154,60,0.1);}
+.field-label{font-size:0.69rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;}
+.priority-row{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
+.priority-num{width:22px;height:22px;background:var(--gold);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.66rem;font-weight:700;flex-shrink:0;}
+.priority-input{flex:1;border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-family:'DM Sans',sans-serif;font-size:0.82rem;background:white;color:var(--ink);}
+.priority-input:focus{outline:none;border-color:var(--gold);}
+.priority-done{width:20px;height:20px;border:2px solid var(--border);border-radius:4px;cursor:pointer;background:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;touch-action:manipulation;}
+.priority-done.checked{background:var(--green);border-color:var(--green);color:white;font-size:0.66rem;}
+
+/* SCORE BAR */
+.score-bar{background:var(--cream);border-radius:8px;padding:12px 16px;margin-bottom:16px;border:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.score-circle{width:54px;height:54px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:3px solid var(--gold);flex-shrink:0;}
+.score-num{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:var(--ink);line-height:1;}
+.score-label{font-size:0.56rem;color:var(--muted);text-transform:uppercase;}
+.score-breakdown{flex:1;display:flex;gap:12px;flex-wrap:wrap;}
+.score-item{text-align:center;}
+.score-item-num{font-family:'DM Mono',monospace;font-size:0.95rem;font-weight:500;color:var(--ink);}
+.score-item-label{font-size:0.62rem;color:var(--muted);text-transform:uppercase;}
+.legend{display:flex;gap:12px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:0.68rem;color:var(--muted);}
+.legend-dot{width:8px;height:8px;border-radius:50%;}
+
+.card-full{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;}
+.save-btn{background:var(--ink);color:var(--gold-light);border:none;padding:12px 28px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:0.86rem;font-weight:600;cursor:pointer;letter-spacing:0.5px;transition:all 0.2s;touch-action:manipulation;}
+.save-btn:hover{background:var(--gold);color:var(--ink);}
+.save-confirm{color:var(--green);font-size:0.78rem;margin-left:10px;opacity:0;transition:opacity 0.3s;}
+.save-confirm.show{opacity:1;}
+.footer-actions{display:flex;align-items:center;padding:16px 0 20px;gap:10px;flex-wrap:wrap;}
+
+/* PHASE & BANNERS */
+.phase-banner{background:linear-gradient(135deg,var(--ink) 0%,#2d2010 100%);border-radius:10px;padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;border:1px solid var(--gold);}
+.phase-info h2{font-family:'Playfair Display',serif;color:var(--gold-light);font-size:1rem;}
+.phase-info p{color:var(--muted);font-size:0.75rem;margin-top:3px;}
+.phase-days{font-family:'DM Mono',monospace;color:var(--gold);font-size:1.2rem;font-weight:500;}
+.phase-days-label{color:var(--muted);font-size:0.68rem;text-align:right;}
+.highlight-box{background:linear-gradient(135deg,#fff9ed,#fff3d0);border:1px solid #e8c97a;border-left:4px solid var(--gold);border-radius:8px;padding:11px 14px;margin-bottom:14px;font-size:0.78rem;color:var(--ink);line-height:1.6;}
+.highlight-box strong{color:var(--gold);font-weight:700;}
+.highlight-box.weekend{background:linear-gradient(135deg,#edf7ed,#d4edda);border-color:#4a7c59;border-left-color:var(--sage);}
+.highlight-box.weekend strong{color:var(--sage);}
+.weekend-banner{background:linear-gradient(135deg,#1a2e1a,#0d1f2d);border-radius:10px;padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;border:1px solid var(--sage);}
+.weekend-banner h2{font-family:'Playfair Display',serif;color:#a8d5b5;font-size:1.1rem;}
+.weekend-banner p{color:#7a9a7a;font-size:0.76rem;margin-top:3px;}
+
+/* DAILY GRID */
+.daily-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+@media(max-width:680px){.daily-grid{grid-template-columns:1fr;}}
+
+/* WEEKLY */
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:20px;}
+@media(max-width:700px){.week-grid{grid-template-columns:repeat(4,1fr);}}
+@media(max-width:420px){.week-grid{grid-template-columns:repeat(4,1fr);}}
+.week-day-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;cursor:pointer;transition:all 0.2s;}
+.week-day-card:hover,.week-day-card:active{border-color:var(--gold);}
+.week-day-card.today{border-color:var(--gold);border-width:2px;}
+.week-day-card.is-weekend .week-day-header{background:linear-gradient(135deg,#1a2e1a,#0d2a1a);}
+.week-day-header{background:var(--ink);color:var(--gold-light);padding:7px 10px;font-size:0.72rem;font-weight:600;text-transform:uppercase;}
+.week-day-body{padding:9px 10px;}
+.week-score{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--ink);line-height:1;}
+.week-score-label{font-size:0.62rem;color:var(--muted);margin-bottom:6px;}
+.week-mini-bar{height:3px;background:var(--cream);border-radius:2px;overflow:hidden;}
+.week-mini-fill{height:100%;background:var(--gold);border-radius:2px;}
+
+/* MONTHLY */
+.monthly-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.monthly-title{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--ink);}
+.month-nav{display:flex;gap:6px;}
+.month-nav button{background:var(--cream);border:1px solid var(--border);padding:5px 11px;border-radius:4px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.78rem;transition:all 0.15s;}
+.month-nav button:hover{background:var(--gold);color:white;}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:20px;}
+.cal-header{text-align:center;font-size:0.66rem;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px 0;}
+.cal-day{aspect-ratio:1;border:1px solid var(--border);border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;background:var(--card);font-size:0.74rem;}
+.cal-day:hover{border-color:var(--gold);}
+.cal-day.today{border-color:var(--gold);border-width:2px;font-weight:700;}
+.cal-day.empty{background:transparent;border-color:transparent;cursor:default;}
+.cal-day.is-weekend-cal{background:#f0f7f0;}
+.cal-dot{width:4px;height:4px;border-radius:50%;margin-top:1px;}
+.dot-green{background:var(--green);}.dot-amber{background:var(--amber);}.dot-red{background:var(--red);}
+.monthly-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px;}
+@media(max-width:500px){.monthly-stats{grid-template-columns:1fr 1fr;}}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;}
+.stat-num{font-family:'Playfair Display',serif;font-size:1.7rem;color:var(--ink);line-height:1;}
+.stat-label{font-size:0.67rem;color:var(--muted);text-transform:uppercase;margin-top:3px;}
+.monthly-audit{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;}
+.audit-header{background:var(--ink);color:var(--gold-light);padding:11px 16px;font-family:'Playfair Display',serif;font-size:0.9rem;}
+.audit-body{padding:16px;}
+.audit-person{border-bottom:1px solid var(--cream);padding:11px 0;display:grid;grid-template-columns:130px 1fr 1fr;gap:10px;align-items:start;}
+@media(max-width:600px){.audit-person{grid-template-columns:1fr;}}
+.audit-person:last-child{border-bottom:none;}
+.audit-name{font-weight:600;font-size:0.8rem;color:var(--ink);}
+.audit-role{font-size:0.68rem;color:var(--muted);margin-top:2px;}
+.audit-textarea{width:100%;border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-family:'DM Sans',sans-serif;font-size:0.76rem;color:var(--ink);background:white;resize:vertical;min-height:50px;}
+.audit-textarea:focus{outline:none;border-color:var(--gold);}
+.audit-field-label{font-size:0.64rem;color:var(--muted);margin-bottom:3px;font-weight:600;text-transform:uppercase;}
+.reading-section{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;}
+.reading-title{font-family:'Playfair Display',serif;font-size:0.9rem;margin-bottom:11px;color:var(--ink);}
+.book-row{display:flex;align-items:center;gap:11px;padding:8px 0;border-bottom:1px solid var(--cream);}
+.book-row:last-child{border-bottom:none;}
+.book-month{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);min-width:55px;}
+.book-info{flex:1;}
+.book-name{font-weight:600;font-size:0.8rem;color:var(--ink);}
+.book-author{font-size:0.7rem;color:var(--muted);}
+.book-status{font-size:0.7rem;padding:3px 9px;border-radius:20px;font-weight:500;cursor:pointer;border:none;touch-action:manipulation;}
+.status-reading{background:#cce5ff;color:#004085;}
+.status-done{background:#d4edda;color:var(--green);}
+.status-pending{background:var(--cream);color:var(--muted);border:1px solid var(--border);}
+.teach-subject{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--cream);}
+.teach-subject:last-child{border-bottom:none;}
+.teach-badge{font-size:0.66rem;font-weight:600;padding:2px 7px;border-radius:9px;flex-shrink:0;}
+.badge-physics{background:#dbeafe;color:#1d4ed8;}
+.badge-chemistry{background:#fce7f3;color:#9d174d;}
+.teach-notes{flex:1;border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:0.76rem;background:white;color:var(--ink);}
+.wknd-journal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:600px){.wknd-journal-grid{grid-template-columns:1fr;}}
+
+/* OFFLINE TOAST */
+.toast{position:fixed;bottom:calc(72px + var(--safe-bot));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--gold-light);padding:8px 18px;border-radius:20px;font-size:0.76rem;border:1px solid var(--gold);opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:300;white-space:nowrap;}
+.toast.show{opacity:1;}
+
+/* USER PILL */
+.user-pill{background:#2a1e10;border:1px solid var(--gold);border-radius:20px;padding:4px 12px;display:flex;align-items:center;gap:6px;cursor:pointer;}
+.user-pill span{color:var(--gold-light);font-size:0.72rem;font-weight:500;}
+</style>
+</head>
+<body>
+
+<!-- SYNC PROGRESS BAR -->
+<div id="syncBar"></div>
+
+<!-- FIREBASE SETUP OVERLAY -->
+<div id="setupOverlay">
+  <div class="setup-box">
+    <h2>&#128293; One-Time Firebase Setup</h2>
+    <p>Your journal will sync across Android, Windows laptop, and iPad in real-time. This takes 5 minutes once.</p>
+    <div class="setup-step">
+      <div class="setup-step-num">STEP 1</div>
+      <p>Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> &rarr; Click <strong>Add project</strong> &rarr; Name it <code>leaderlog</code> &rarr; Disable Analytics &rarr; Create project</p>
+    </div>
+    <div class="setup-step">
+      <div class="setup-step-num">STEP 2</div>
+      <p>In your project: click the <strong>Web icon &lt;/&gt;</strong> &rarr; Register app as <code>leaderlog</code> &rarr; Copy the <code>firebaseConfig</code> object shown</p>
+    </div>
+    <div class="setup-step">
+      <div class="setup-step-num">STEP 3</div>
+      <p>Go to <strong>Firestore Database</strong> &rarr; Create database &rarr; Choose <strong>production mode</strong> &rarr; Select <code>asia-south1 (Mumbai)</code> region</p>
+    </div>
+    <div class="setup-step">
+      <div class="setup-step-num">STEP 4</div>
+      <p>Go to <strong>Authentication</strong> &rarr; Get started &rarr; Enable <strong>Google</strong> sign-in. Then in Firestore &rarr; Rules, paste:<br>
+      <code>rules_version='2'; service cloud.firestore { match /databases/{db}/documents { match /users/{uid}/{doc=**} { allow read,write: if request.auth.uid == uid; } } }</code></p>
+    </div>
+    <div class="setup-step">
+      <div class="setup-step-num">STEP 5 — Paste your config below</div>
+      <p>Paste only the object value (starting with <code>{</code>):</p>
+      <textarea class="config-input" id="fbConfigInput" placeholder='{
+  "apiKey": "AIza...",
+  "authDomain": "leaderlog-xxxxx.firebaseapp.com",
+  "projectId": "leaderlog-xxxxx",
+  "storageBucket": "leaderlog-xxxxx.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "1:123456789:web:abcdef"
+}'></textarea>
+      <div class="setup-error" id="configError">Invalid config. Please paste the full firebaseConfig object.</div>
+      <button class="setup-btn" onclick="saveFirebaseConfig()">Save Config &amp; Launch App &#8594;</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <h1>Leadership Journal</h1>
+    <p>Digital Compass 2026 &middot; 90-Day Plan</p>
+  </div>
+  <div class="header-right">
+    <div class="sync-indicator">
+      <div class="sync-dot" id="syncDot"></div>
+      <span id="syncLabel">offline</span>
+    </div>
+    <div class="user-pill" onclick="handleSignIn()" id="userPill">
+      <span id="userLabel">Sign In</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- DAILY -->
+  <div class="tab-content active" id="view-daily">
+    <div class="date-nav">
+      <button onclick="changeDate(-1)">&#8592;</button>
+      <input type="date" id="currentDate" onchange="loadDay()">
+      <span class="day-label" id="dayLabel"></span>
+      <button onclick="changeDate(1)">&#8594;</button>
+      <span class="day-focus" id="dayFocus"></span>
+    </div>
+    <div id="weekdayContent"></div>
+    <div id="weekendContent" style="display:none"></div>
+  </div>
+
+  <!-- WEEKLY -->
+  <div class="tab-content" id="view-weekly">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div>
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.2rem" id="weekTitle">This Week</h2>
+        <p style="color:var(--muted);font-size:0.75rem;margin-top:2px" id="weekRange"></p>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="month-nav" style="background:var(--cream);border:1px solid var(--border);padding:5px 11px;border-radius:4px;cursor:pointer;font-size:0.78rem;" onclick="changeWeek(-1)">&#8592;</button>
+        <button class="month-nav" style="background:var(--cream);border:1px solid var(--border);padding:5px 11px;border-radius:4px;cursor:pointer;font-size:0.78rem;" onclick="changeWeek(1)">&#8594;</button>
+      </div>
+    </div>
+    <div class="week-grid" id="weekGrid"></div>
+    <div class="card-full">
+      <div class="card-header"><div class="icon" style="background:#e8f4fd">&#128203;</div><h3>Weekday Focus</h3></div>
+      <div class="card-body" id="weeklyChecklist"></div>
+    </div>
+    <div class="card-full" style="margin-top:16px">
+      <div class="card-header"><div class="icon" style="background:#d4edda">&#127807;</div><h3>Weekend Checklist</h3></div>
+      <div class="card-body" id="weekendChecklist"></div>
+    </div>
+    <div class="card-full" style="margin-top:16px">
+      <div class="card-header"><div class="icon icon-journal">&#128211;</div><h3>Weekly Reflection</h3></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div class="field-label">What moved this week?</div>
+            <textarea class="journal-field" id="weekWins" style="min-height:70px" placeholder="3 things that genuinely progressed..."></textarea>
+            <div class="field-label">Who grew most &amp; how?</div>
+            <textarea class="journal-field" id="weekPeople" placeholder="Name + specific observation..."></textarea>
+          </div>
+          <div>
+            <div class="field-label">What didn&rsquo;t move and why?</div>
+            <textarea class="journal-field" id="weekStuck" style="min-height:70px" placeholder="Be honest..."></textarea>
+            <div class="field-label">What am I avoiding?</div>
+            <textarea class="journal-field" id="weekAvoid" placeholder="Name it specifically..."></textarea>
+          </div>
+        </div>
+        <div class="field-label">Next week&rsquo;s single most important outcome</div>
+        <textarea class="journal-field" id="weekNext" placeholder="If one thing happened that made next week a success, what is it?" style="min-height:48px"></textarea>
+      </div>
+    </div>
+    <div class="footer-actions">
+      <button class="save-btn" onclick="saveWeekly()">Save Weekly Reflection</button>
+      <span class="save-confirm" id="saveWeekConfirm">&#10003; Saved</span>
+    </div>
+  </div>
+
+  <!-- MONTHLY -->
+  <div class="tab-content" id="view-monthly">
+    <div class="monthly-header">
+      <div class="monthly-title" id="monthTitle">March 2026</div>
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)">&#8592;</button>
+        <button onclick="changeMonth(1)">&#8594;</button>
+      </div>
+    </div>
+    <div class="monthly-stats" id="monthlyStats"></div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+    <div class="monthly-audit">
+      <div class="audit-header">Monthly Leadership Audit</div>
+      <div class="audit-body" id="auditBody"></div>
+    </div>
+    <div class="card-full" style="margin-bottom:16px">
+      <div class="card-header"><div class="icon" style="background:#e8f4fd">&#128203;</div><h3>Monthly Checklist</h3></div>
+      <div class="card-body" id="monthlyChecklist"></div>
+    </div>
+    <div class="reading-section">
+      <div class="reading-title">&#128218; 90-Day Reading Plan</div>
+      <div class="book-row"><div class="book-month">Month 1</div><div class="book-info"><div class="book-name">The Coaching Habit</div><div class="book-author">Michael Bungay Stanier</div></div><button class="book-status status-pending" id="book1status" onclick="toggleBook(1)">Not Started</button></div>
+      <div class="book-row"><div class="book-month">Month 2</div><div class="book-info"><div class="book-name">Radical Candor</div><div class="book-author">Kim Scott</div></div><button class="book-status status-pending" id="book2status" onclick="toggleBook(2)">Not Started</button></div>
+      <div class="book-row"><div class="book-month">Month 3</div><div class="book-info"><div class="book-name">The First 90 Days</div><div class="book-author">Michael Watkins</div></div><button class="book-status status-pending" id="book3status" onclick="toggleBook(3)">Not Started</button></div>
+    </div>
+    <div class="card-full">
+      <div class="card-header"><div class="icon icon-journal">&#128211;</div><h3>Month-End Reflection</h3></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div class="field-label">Vision Communication &mdash; clearer?</div>
+            <textarea class="journal-field" id="monthVision" placeholder="Do people understand where we're going?"></textarea>
+            <div class="field-label">Business Immersion &mdash; what did I learn?</div>
+            <textarea class="journal-field" id="monthImmersion" placeholder="Which unit, what I heard, what I did..."></textarea>
+          </div>
+          <div>
+            <div class="field-label">Culture signal &mdash; ownership growing?</div>
+            <textarea class="journal-field" id="monthCulture" placeholder="3 specific observations..."></textarea>
+            <div class="field-label">What to do differently next month?</div>
+            <textarea class="journal-field" id="monthImprove" placeholder="One honest commitment..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-actions">
+      <button class="save-btn" onclick="saveMonthly()">Save Monthly Audit</button>
+      <span class="save-confirm" id="saveMonthConfirm">&#10003; Saved</span>
+    </div>
+  </div>
+
+</div><!-- end main -->
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="bnav-btn active" id="bnav-daily" onclick="switchView('daily')"><span class="bicon">&#128197;</span>Daily</button>
+  <button class="bnav-btn" id="bnav-weekly" onclick="switchView('weekly')"><span class="bicon">&#128200;</span>Weekly</button>
+  <button class="bnav-btn" id="bnav-monthly" onclick="switchView('monthly')"><span class="bicon">&#128336;</span>Monthly</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<!-- FIREBASE SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+// ── PLAN DATA ──────────────────────────────────────────────
+const PLAN_START = new Date('2026-03-09');
+const DAY_FOCUS = {1:'Direction Day',2:'People Day',3:'Thinking Day',4:'Transformation Day',5:'Reflection & Connection',6:'Saturday — Restore & Build',0:'Sunday — Family & Renew'};
+
+const MORNING_BLOCKS=[
+  {id:'chase',time:'5:00-5:45',title:'Walk Chase',desc:'No phone. Physical reset. Let mind wander.'},
+  {id:'yoga',time:'5:45-6:30',title:'Pranayama & Yoga',desc:'Mental clarity, emotional regulation. Keeps you patient in hard conversations.'},
+  {id:'daughter',time:'6:30-7:15',title:'Daughter — Fully Present',desc:'Wake up, get ready together. No work messages.'},
+  {id:'dropday',time:'7:15-8:00',title:'Drop Day / Reading Block',desc:'Drop days: school drop. Non-drop: 30 min leadership reading.'},
+  {id:'commute',time:'8:15-9:30',title:'Commute Prep + Travel',desc:'Review top 3 priorities. Audio learning or quiet thinking.'},
+];
+const DEEPWORK_BLOCKS=[
+  {id:'landing',time:'9:30-9:45',title:'Landing Ritual',desc:'Greet team genuinely. Write 3 priorities. Do NOT open email first.'},
+  {id:'deep1',time:'9:45-11:00',title:'Deep Work Block 1',desc:'Strategic thinking, planning, writing. No meetings unless critical.'},
+  {id:'meetings',time:'11:00-1:00',title:'Meetings Block',desc:'All meetings have agenda. End with named commitments.'},
+  {id:'lunch',time:'1:00-1:45',title:'Lunch + Human Time',desc:'2-3x/week: eat with someone. Know them as people.'},
+  {id:'reset',time:'1:45-2:00',title:'Midday Reset',desc:'15 mins. Walk or sit. Review what shifted.'},
+  {id:'deep2',time:'2:00-3:30',title:'Deep Work Block 2',desc:'Decisions, analysis, complex responses.'},
+];
+const PEOPLE_BLOCKS=[{id:'walkabout',time:'3:30-5:00',title:'People & Operations Block',desc:'Walkarounds, check-ins, coaching conversations. Organic coaching happens here.'}];
+const EVENING_BLOCKS=[
+  {id:'closure',time:'5:00-5:30',title:'CLOSURE BLOCK — Non-Negotiable',desc:'3 wins + 1 improvement. Appreciation messages. Tomorrow priorities. The hinge.'},
+  {id:'commutehome',time:'5:30-7:30',title:'Commute Home + Arrive',desc:'Decompress. Transition from CTO to father.'},
+  {id:'family',time:'7:30-10:00',title:'Family Time — Sacred',desc:'Dinner, conversation, full presence. Phone silent.'},
+  {id:'readingeve',time:'10:00-10:30',title:'Reading (Leadership/Business)',desc:'30 min focused reading from 90-day book plan.'},
+  {id:'journaleve',time:'10:30-10:45',title:'Evening Journal + Gratitude',desc:'1 insight, 1 person to invest in tomorrow, 1 gratitude.'},
+  {id:'sleep',time:'11:00',title:'Sleep',desc:'Non-negotiable leadership performance tool.'},
+];
+const SAT_MORNING=[
+  {id:'sat_chase',time:'5:00-5:45',title:'Walk Chase',desc:'Slower pace. Spacious thinking. Weekend begins.'},
+  {id:'sat_yoga',time:'5:45-6:30',title:'Pranayama & Yoga',desc:'Longer session if possible. Restore fully.'},
+  {id:'sat_garden',time:'6:30-7:30',title:'Gardening Session',desc:'Hands in soil. Full presence — no phone. One of your best thinking spaces.'},
+  {id:'sat_family_am',time:'7:30-8:30',title:'Family Breakfast — Unhurried',desc:'Sit together. No rushing. Sets the tone for the weekend.'},
+];
+const SAT_WORK=[
+  {id:'sat_articles',time:'8:30-9:30',title:'Article Reading Session',desc:'Work through articles collected over the week. 1 insight captured per article.'},
+  {id:'sat_room',time:'9:30-10:30',title:'Room Deep Clean (1 room/week)',desc:'Rotate through the house — one room done properly each Saturday.'},
+  {id:'sat_cars',time:'10:30-11:30',title:'Car Cleaning',desc:'Both cars or alternate weekly. Physical activity + visible result.'},
+  {id:'sat_finance',time:'11:30-12:30',title:'Family Finances Review',desc:'Bills, investments, savings, budget vs actuals. 30 mins done consistently is enough.',monthly:true},
+];
+const SAT_LAB=[
+  {id:'sat_lunch',time:'12:30-1:30',title:'Lunch + Rest',desc:'Eat well. 20-min rest after lunch. Recharge for lab ahead.'},
+  {id:'sat_lab',time:'1:30-4:30',title:'Lab Session — Batteries & Electronics',desc:'3 hours uninterrupted. Experiments, builds, battery chemistry, home lab. Document what you tried and learned.'},
+  {id:'sat_teach',time:'4:30-6:00',title:'Daughter — Physics & Chemistry',desc:'90 min. One topic per subject. Concept first, problems together. Be her teacher, not her parent.'},
+];
+const SAT_EVENING=[
+  {id:'sat_family_eve',time:'6:00-10:00',title:'Family Evening — Free & Present',desc:'Dinner. Movie, game, walk, or conversation. No agenda. Full presence.'},
+  {id:'sat_wknd_journal',time:'10:00-10:45',title:'Saturday Journal + Week Ahead Awareness',desc:'Lab insights, article notes. Light preview of next week.'},
+  {id:'sat_sleep',time:'11:00',title:'Sleep',desc:'Same time as weekdays. Consistency is the foundation.'},
+];
+const SUN_MORNING=[
+  {id:'sun_chase',time:'5:00-5:45',title:'Walk Chase',desc:'Long, slow walk. Let the week settle. What mattered most?'},
+  {id:'sun_yoga',time:'5:45-6:45',title:'Extended Yoga & Meditation',desc:'Full 60 min. Sunday is your deepest restoration window.'},
+  {id:'sun_garden',time:'6:45-7:30',title:'Garden Check & Care',desc:'Lighter than Saturday. Water, check, observe. Peaceful start.'},
+  {id:'sun_family_am',time:'7:30-9:00',title:'Family Breakfast — Slow & Together',desc:'Cook together if possible. Conversation, laughter, presence.'},
+];
+const SUN_CHORES=[
+  {id:'sun_monthly',time:'9:00-9:30',title:'Monthly Tasks — Ion Exchanger, Filters',desc:'Salt refill, filter checks, home maintenance. 30 mins when done regularly.',monthly:true},
+  {id:'sun_provisions',time:'9:30-10:30',title:'Household Provisioning / Errands',desc:'Weekly grocery, pharmacy, supplies. Involve family.'},
+  {id:'sun_teach',time:'10:30-12:00',title:'Daughter — Physics & Chemistry (Session 2)',desc:'Review Saturday. Practice problems, doubts, past papers. Her exam readiness is built here.'},
+];
+const SUN_AFTERNOON=[
+  {id:'sun_lunch',time:'12:00-1:30',title:'Lunch + Rest',desc:'Full family lunch. Nap or rest 1:00-1:30. Non-negotiable restoration.'},
+  {id:'sun_free',time:'1:30-4:00',title:'Free Time — Fully Unstructured',desc:'Read fiction, tinker, watch a film, or do nothing. This is recovery. Do not fill with productivity.'},
+  {id:'sun_wkplan',time:'4:00-5:00',title:'Weekly Planning Session',desc:'Next week: meetings, priorities, 1-on-1s, difficult conversations. Set Monday intentions.'},
+];
+const SUN_EVENING=[
+  {id:'sun_family_eve',time:'5:00-10:00',title:'Family Evening — Sacred',desc:'Dinner together. Full presence. Work WhatsApp on silent.'},
+  {id:'sun_reflection',time:'10:00-10:45',title:'Sunday Deep Reflection',desc:'What restored me? Daughter insight. Leadership intention for the week. Personal commitment.'},
+  {id:'sun_sleep',time:'11:00',title:'Sleep — Rest Before the Week',desc:'Early sleep if possible. Week begins well when Sunday night is calm.'},
+];
+const WEEKLY_FOCUS={
+  1:['Hold 30-min personal planning: what must be true by Friday?','Run leadership standup — connect week to Digital Compass vision','Send one appreciation for something worthy from last week','Review Digital Compass milestone status'],
+  2:['2-3 one-on-ones: Commit / Happened / Blockers / How I help','Walkabout in a non-tech team — ask the frustration question','High-potential informal check-in','Tuesday is People Day — be fully present'],
+  3:['Protect both Deep Work blocks — no back-to-back meetings','Review Digital Compass with business value lens','Work on Career Architecture or Strategy on a Page','Write communications that require your actual brain'],
+  4:['Digital Transformation reviews with Sam','Cross-functional integration meetings and decisions','Vendor discussions / technology architecture calls','Push the change agenda — transformation engine day'],
+  5:['Morning: review week vs commitments — what moved? why not?','Investment conversation with one high-potential person','Bright Idea Friday — respond to team ideas personally','Tell one person something specific and genuine about their value','Set next week top 3 outcomes before leaving'],
+};
+const WEEKEND_CHECKLIST={
+  6:['Walk Chase — slower pace, spacious thinking','Gardening session — hands in soil, no phone','Article reading — 1 insight per article captured','1 room deep clean (rotate weekly)','Car cleaning (alternate or both)','Family finances review (monthly)','Lab session — 3 hrs batteries/electronics/home lab','Daughter teaching: Physics + Chemistry Session 1 (90 min)','Saturday journal — lab insights + week ahead awareness'],
+  0:['Walk Chase — long slow walk, let week settle','Extended yoga + meditation (60 min)','Monthly tasks: ion exchanger salt, filters','Household provisioning and errands','Daughter teaching: Physics + Chemistry Session 2 (90 min)','Weekly Planning Session (4:00-5:00 PM)','Sunday deep reflection — restore, daughter insight, leadership intention'],
+};
+const MONTHLY_CHECKLIST={
+  1:['Hold Vision Conversation (8-12 people, 30% you / 70% them)','Update Strategy on a Page based on what you heard','Send monthly 2-paragraph update to leadership + business heads'],
+  2:['Career conversation with each direct report (3-yr goal / blocker / what I can open)','Document commitments from career conversations','Follow through on at least 1 commitment before month end'],
+  3:['Half-day Business Immersion in a non-tech unit','Ask: "What could technology fix here?"','Report back to that team within 2 weeks'],
+  4:['Monthly Leadership Audit — honest growth assessment per direct report','Review Digital Compass: business value + adoption','Identify the difficult conversation postponed — schedule it','Did each high-potential person get one door opened?'],
+};
+const DIRECT_REPORTS=[
+  {name:'Ajay',role:'PMO Head'},{name:'Sumit',role:'IT / Security / Compliance'},
+  {name:'Sam',role:'Digital Transformation Lead'},{name:'Sesha',role:'BA / Support'},{name:'Harsha',role:'PMO / ERP Support'},
+];
+
+// ── STATE ──────────────────────────────────────────────────
+let currentDate=new Date();
+let currentWeekStart=getMonday(new Date());
+let currentMonth=new Date();
+let db=null, auth=null, currentUser=null;
+let pendingSaves={};
+let saveTimer=null;
+
+// ── FIREBASE INIT ──────────────────────────────────────────
+function checkSetup(){
+  const cfg=localStorage.getItem('fb_config');
+  if(!cfg){ document.getElementById('setupOverlay').classList.remove('hidden'); return false; }
+  try{
+    const config=JSON.parse(cfg);
+    const app=initializeApp(config);
+    db=getFirestore(app);
+    auth=getAuth(app);
+    onAuthStateChanged(auth,user=>{
+      currentUser=user;
+      updateUserUI(user);
+      if(user) loadDay();
+    });
+    document.getElementById('setupOverlay').classList.add('hidden');
+    return true;
+  }catch(e){
+    document.getElementById('setupOverlay').classList.remove('hidden');
+    return false;
+  }
+}
+
+window.saveFirebaseConfig=function(){
+  const raw=document.getElementById('fbConfigInput').value.trim();
+  const errEl=document.getElementById('configError');
+  try{
+    // Handle both raw object and JSON
+    const cleaned=raw.replace(/(\w+):/g,'"$1":').replace(/'/g,'"');
+    let cfg;
+    try{ cfg=JSON.parse(raw); }catch(e){ cfg=JSON.parse(cleaned); }
+    if(!cfg.apiKey||!cfg.projectId) throw new Error('Missing keys');
+    localStorage.setItem('fb_config',JSON.stringify(cfg));
+    errEl.style.display='none';
+    location.reload();
+  }catch(e){
+    errEl.style.display='block';
+  }
+};
+
+function updateUserUI(user){
+  const pill=document.getElementById('userLabel');
+  const dot=document.getElementById('syncDot');
+  const lbl=document.getElementById('syncLabel');
+  if(user){
+    pill.textContent=user.displayName?user.displayName.split(' ')[0]:'Signed In';
+    dot.className='sync-dot online';
+    lbl.textContent='synced';
+  }else{
+    pill.textContent='Sign In';
+    dot.className='sync-dot error';
+    lbl.textContent='not signed in';
+  }
+}
+
+window.handleSignIn=async function(){
+  if(!auth) return;
+  if(currentUser){
+    if(confirm('Sign out?')){ await signOut(auth); }
+    return;
+  }
+  try{
+    const provider=new GoogleAuthProvider();
+    await signInWithPopup(auth,provider);
+  }catch(e){ showToast('Sign-in failed. Try again.'); }
+};
+
+// ── STORAGE: Firebase + localStorage fallback ──────────────
+function getKey(d){ return 'j_'+d.getFullYear()+'_'+String(d.getMonth()+1).padStart(2,'0')+'_'+String(d.getDate()).padStart(2,'0'); }
+
+async function saveData(key,data){
+  // Always save to localStorage immediately
+  localStorage.setItem(key,JSON.stringify(data));
+  // Queue Firebase save (debounced)
+  pendingSaves[key]=data;
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(flushToFirebase,1200);
+}
+
+async function flushToFirebase(){
+  if(!db||!currentUser||Object.keys(pendingSaves).length===0) return;
+  setSyncState('syncing');
+  try{
+    const batch=Object.entries(pendingSaves);
+    pendingSaves={};
+    for(const [key,data] of batch){
+      await setDoc(doc(db,'users',currentUser.uid,'data',key),{...data,_ts:Date.now()});
+    }
+    setSyncState('synced');
+    setTimeout(()=>setSyncState(''),2000);
+  }catch(e){
+    setSyncState('error');
+    showToast('Sync failed — saved locally');
+  }
+}
+
+async function loadData(key){
+  // Try Firebase first, fall back to localStorage
+  if(db&&currentUser){
+    try{
+      const snap=await getDoc(doc(db,'users',currentUser.uid,'data',key));
+      if(snap.exists()){
+        const d=snap.data();
+        localStorage.setItem(key,JSON.stringify(d));
+        return d;
+      }
+    }catch(e){}
+  }
+  const local=localStorage.getItem(key);
+  return local?JSON.parse(local):{};
+}
+
+function setSyncState(state){
+  const bar=document.getElementById('syncBar');
+  const dot=document.getElementById('syncDot');
+  const lbl=document.getElementById('syncLabel');
+  bar.className=state?state:'';
+  if(state==='syncing'){ dot.className='sync-dot syncing'; lbl.textContent='syncing...'; }
+  else if(state==='synced'){ dot.className='sync-dot online'; lbl.textContent='synced'; }
+  else if(state==='error'){ dot.className='sync-dot error'; lbl.textContent='sync error'; }
+  else if(currentUser){ dot.className='sync-dot online'; lbl.textContent='synced'; }
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── HELPERS ────────────────────────────────────────────────
+function getMonday(d){ const dd=new Date(d); const day=dd.getDay(); const diff=dd.getDate()-day+(day===0?-6:1); dd.setDate(diff); dd.setHours(0,0,0,0); return dd; }
+function getPhaseDayNum(date){ return Math.floor((date-PLAN_START)/(1000*60*60*24))+1; }
+function getPhaseInfo(n){
+  if(n<=0) return {title:'Pre-Start',desc:'Plan begins soon'};
+  if(n<=30) return {title:'Phase 1: Foundation',desc:'Days 1-30 · Establish the Habits'};
+  if(n<=60) return {title:'Phase 2: Deepening',desc:'Days 31-60 · Strengthen and Stretch'};
+  if(n<=90) return {title:'Phase 3: Integration',desc:'Days 61-90 · Make It Who You Are'};
+  return {title:'Beyond 90 Days',desc:'Continuous Growth · Keep the habits alive'};
+}
+function isWeekend(d){ const day=d.getDay(); return day===0||day===6; }
+function getAllBlocks(dow){
+  if(dow===6) return [...SAT_MORNING,...SAT_WORK,...SAT_LAB,...SAT_EVENING];
+  if(dow===0) return [...SUN_MORNING,...SUN_CHORES,...SUN_AFTERNOON,...SUN_EVENING];
+  return [...MORNING_BLOCKS,...DEEPWORK_BLOCKS,...PEOPLE_BLOCKS,...EVENING_BLOCKS];
+}
+
+// ── RENDER BLOCKS ──────────────────────────────────────────
+function renderBlocks(containerId,blocks,dayKey,blockData){
+  const el=document.getElementById(containerId); if(!el) return;
+  el.innerHTML='';
+  blocks.forEach(b=>{
+    const s=(blockData||{})[b.id]||'';
+    const mt=b.monthly?'<span class="monthly-tag">Monthly</span>':'';
+    el.innerHTML+='<div class="block-item"><div class="block-time">'+b.time+'</div><div class="block-info"><div class="block-title">'+b.title+mt+'</div><div class="block-desc">'+b.desc+'</div></div><div class="adherence-toggle"><button class="adh-btn '+(s==='done'?'done':'')+'" onclick="setBlock(\''+dayKey+'\',\''+b.id+'\',\'done\')">&#10003;</button><button class="adh-btn '+(s==='partial'?'partial':'')+'" onclick="setBlock(\''+dayKey+'\',\''+b.id+'\',\'partial\')">~</button><button class="adh-btn '+(s==='missed'?'missed':'')+'" onclick="setBlock(\''+dayKey+'\',\''+b.id+'\',\'missed\')">&#10007;</button></div></div>';
+  });
+}
+
+window.setBlock=async function(dayKey,blockId,status){
+  const data=JSON.parse(localStorage.getItem(dayKey)||'{}');
+  if(!data.blocks) data.blocks={};
+  data.blocks[blockId]=data.blocks[blockId]===status?'':status;
+  await saveData(dayKey,data);
+  loadDay();
+};
+
+function calcScore(blockData,dow){
+  const all=getAllBlocks(dow);
+  let done=0,partial=0,total=0;
+  all.forEach(b=>{ const s=(blockData||{})[b.id]; if(s==='done')done++; else if(s==='partial')partial++; if(s)total++; });
+  return {done,partial,total,score:total>0?Math.round(((done+partial*0.5)/total)*100):null};
+}
+
+function updateScoreUI(blockData,dow){
+  const {done,partial,total,score}=calcScore(blockData,dow);
+  const s=document.getElementById('dailyScore'); if(s) s.textContent=score!==null?score+'%':'—';
+  const sc=document.getElementById('scoreCompleted'); if(sc) sc.textContent=done;
+  const sp=document.getElementById('scorePartial'); if(sp) sp.textContent=partial;
+  const sm=document.getElementById('scoreMissed'); if(sm) sm.textContent=total-done-partial;
+  const st=document.getElementById('scoreTotal'); if(st) st.textContent=total;
+}
+
+// ── WEEKDAY HTML ───────────────────────────────────────────
+function buildWeekdayHTML(){
+  return `
+  <div class="phase-banner"><div class="phase-info"><h2 id="phaseTitle"></h2><p id="phaseDesc"></p></div><div><div class="phase-days" id="phaseDayNum"></div><div class="phase-days-label">of 90-day plan</div></div></div>
+  <div class="highlight-box"><strong>&#9733; Closure Block (5:00-5:30 PM):</strong> 3 wins + 1 improvement, appreciation message, tomorrow priorities. The hinge that holds everything.</div>
+  <div class="score-bar"><div class="score-circle"><div class="score-num" id="dailyScore">—</div><div class="score-label">Today</div></div><div class="score-breakdown"><div class="score-item"><div class="score-item-num" id="scoreCompleted">0</div><div class="score-item-label">Done</div></div><div class="score-item"><div class="score-item-num" id="scorePartial">0</div><div class="score-item-label">Partial</div></div><div class="score-item"><div class="score-item-num" id="scoreMissed">0</div><div class="score-item-label">Missed</div></div><div class="score-item"><div class="score-item-num" id="scoreTotal">0</div><div class="score-item-label">Tracked</div></div></div><div class="legend"><div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Done</div><div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>Partial</div><div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Missed</div></div></div>
+  <div class="card-full"><div class="card-header"><div class="icon icon-office">&#127919;</div><h3>Today's 3 Priorities</h3><span class="time-label">9:30-9:45 Landing</span></div><div class="card-body">
+    <div class="priority-row"><div class="priority-num">1</div><input class="priority-input" type="text" id="p1" placeholder="Priority 1"><div class="priority-done" id="p1done" onclick="togglePriority(1)"></div></div>
+    <div class="priority-row"><div class="priority-num">2</div><input class="priority-input" type="text" id="p2" placeholder="Priority 2"><div class="priority-done" id="p2done" onclick="togglePriority(2)"></div></div>
+    <div class="priority-row"><div class="priority-num">3</div><input class="priority-input" type="text" id="p3" placeholder="Priority 3"><div class="priority-done" id="p3done" onclick="togglePriority(3)"></div></div>
+  </div></div>
+  <div class="daily-grid">
+    <div class="card"><div class="card-header"><div class="icon icon-morning">&#127749;</div><h3>Morning Block</h3><span class="time-label">5:00-9:00</span></div><div class="card-body" id="morning-blocks"></div></div>
+    <div class="card"><div class="card-header"><div class="icon icon-office">&#129504;</div><h3>Deep Work</h3><span class="time-label">9:30-2:00</span></div><div class="card-body" id="deepwork-blocks"></div></div>
+    <div class="card"><div class="card-header"><div class="icon icon-people">&#129309;</div><h3>People & Coaching</h3><span class="time-label">3:30-5:00</span></div><div class="card-body" id="people-blocks"></div></div>
+    <div class="card"><div class="card-header"><div class="icon icon-evening">&#127769;</div><h3>Closure & Evening</h3><span class="time-label">5:00-11:00</span></div><div class="card-body" id="evening-blocks"></div></div>
+  </div>
+  <div class="card-full"><div class="card-header"><div class="icon icon-journal">&#128211;</div><h3>End of Day Journal</h3><span class="time-label">Closure Block</span></div><div class="card-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div class="field-label">&#127942; 3 Wins Today</div><textarea class="journal-field" id="wins" placeholder="1.&#10;2.&#10;3." style="min-height:80px"></textarea>
+        <div class="field-label">&#128172; Person I Invested In</div><textarea class="journal-field" id="personInvested" placeholder="Name + what you did..."></textarea>
+        <div class="field-label">&#128218; Reading Tonight</div><textarea class="journal-field" id="reading" placeholder="What I read + one insight..." style="min-height:48px"></textarea>
+      </div>
+      <div>
+        <div class="field-label">&#128295; 1 Thing to Improve</div><textarea class="journal-field" id="improve" placeholder="Be honest and specific..."></textarea>
+        <div class="field-label">&#9889; Accountability Check</div><textarea class="journal-field" id="accountability" placeholder="Conversation I'm postponing?"></textarea>
+        <div class="field-label">&#128161; One Insight Today</div><textarea class="journal-field" id="insight" placeholder="Business, people, or system insight..."></textarea>
+      </div>
+    </div>
+    <div class="field-label">&#127775; Gratitude</div><textarea class="journal-field" id="gratitude" placeholder="One genuine thing from today..." style="min-height:44px"></textarea>
+    <div class="field-label">&#128203; Tomorrow's Top 3</div>
+    <div class="priority-row"><div class="priority-num" style="background:var(--muted)">1</div><input class="priority-input" type="text" id="t1" placeholder="Tomorrow priority 1"></div>
+    <div class="priority-row" style="margin-top:6px"><div class="priority-num" style="background:var(--muted)">2</div><input class="priority-input" type="text" id="t2" placeholder="Tomorrow priority 2"></div>
+    <div class="priority-row" style="margin-top:6px"><div class="priority-num" style="background:var(--muted)">3</div><input class="priority-input" type="text" id="t3" placeholder="Tomorrow priority 3"></div>
+  </div></div>
+  <div class="footer-actions"><button class="save-btn" onclick="saveDay()">Save Today</button><span class="save-confirm" id="saveConfirm">&#10003; Saved &amp; Synced</span></div>`;
+}
+
+function buildWeekendHTML(dow){
+  const isSat=dow===6;
+  const intent=isSat?'Restore & Build — Lab, Garden, Articles, Teaching, Finances':'Family & Renew — Provisions, Teaching, Free Time, Week Planning';
+  return `
+  <div class="weekend-banner"><div><h2>${isSat?'Saturday':'Sunday'}</h2><p>${intent}</p></div><div><div class="phase-days" id="phaseDayNum" style="color:#a8d5b5">—</div><div class="phase-days-label">of 90-day plan</div></div></div>
+  <div class="highlight-box weekend"><strong>&#127807; Weekend Intent:</strong> Your lab, garden, daughter's education, and family are your restoration. Guard this time as fiercely as your Deep Work blocks.</div>
+  <div class="score-bar"><div class="score-circle"><div class="score-num" id="dailyScore">—</div><div class="score-label">Today</div></div><div class="score-breakdown"><div class="score-item"><div class="score-item-num" id="scoreCompleted">0</div><div class="score-item-label">Done</div></div><div class="score-item"><div class="score-item-num" id="scorePartial">0</div><div class="score-item-label">Partial</div></div><div class="score-item"><div class="score-item-num" id="scoreMissed">0</div><div class="score-item-label">Missed</div></div><div class="score-item"><div class="score-item-num" id="scoreTotal">0</div><div class="score-item-label">Tracked</div></div></div></div>
+  ${isSat?buildSatBlocks():buildSunBlocks()}
+  ${buildWkndJournal(isSat)}
+  <div class="footer-actions"><button class="save-btn" onclick="saveDay()">Save ${isSat?'Saturday':'Sunday'}</button><span class="save-confirm" id="saveConfirm">&#10003; Saved &amp; Synced</span></div>`;
+}
+
+function buildSatBlocks(){
+  return `<div class="daily-grid">
+    <div class="card"><div class="card-header"><div class="icon icon-morning">&#127749;</div><h3>Morning Ritual</h3><span class="time-label">5:00-8:30</span></div><div class="card-body" id="sat_morning-blocks"></div></div>
+    <div class="card"><div class="card-header"><div class="icon icon-home">&#127968;</div><h3>Home & Admin</h3><span class="time-label">8:30-12:30</span></div><div class="card-body" id="sat_work-blocks"></div></div>
+    <div class="card"><div class="card-header"><div class="icon icon-lab">&#128300;</div><h3>Lab & Teaching</h3><span class="time-label">12:30-6:00</span></div><div class="card-body" id="sat_lab-blocks"></div></div>
+    <div class="card"><div class="card-header"><div class="icon icon-family">&#128106;</div><h3>Evening</h3><span class="time-label">6:00-11:00</span></div><div class="card-body" id="sat_evening-blocks"></div></div>
+  </div>
+  <div class="card-full"><div class="card-header"><div class="icon icon-teach">&#127891;</div><h3>Teaching Notes — Session 1</h3><span class="time-label">4:30-6:00 PM</span></div><div class="card-body">
+    <div class="teach-subject"><span class="teach-badge badge-physics">Physics</span><input class="teach-notes" type="text" id="sat_teach_physics" placeholder="Topic covered..."><input class="teach-notes" type="text" id="sat_teach_physics_note" placeholder="Understanding / to revisit..." style="margin-left:7px"></div>
+    <div class="teach-subject"><span class="teach-badge badge-chemistry">Chemistry</span><input class="teach-notes" type="text" id="sat_teach_chem" placeholder="Topic covered..."><input class="teach-notes" type="text" id="sat_teach_chem_note" placeholder="Understanding / to revisit..." style="margin-left:7px"></div>
+    <div class="field-label" style="margin-top:9px">Overall observation</div>
+    <textarea class="journal-field" id="sat_teach_obs" placeholder="What clicked for her today?" style="min-height:50px"></textarea>
+  </div></div>`;
+}
+
+function buildSunBlocks(){
+  return `<div class="daily-grid">
+    <div class="card"><div class="card-header"><div class="icon icon-morning">&#127749;</div><h3>Morning Ritual</h3><span class="time-label">5:00-9:00</span></div><div class="card-body" id="sun_morning-blocks"></div></div>
+    <div class="card"><div class="card-header"><div class="icon icon-home">&#127968;</div><h3>Chores & Teaching</h3><span class="time-label">9:00-12:00</span></div><div class="card-body" id="sun_chores-blocks"></div></div>
+    <div class="card"><div class="card-header"><div class="icon icon-plan">&#128197;</div><h3>Afternoon & Plan</h3><span class="time-label">12:00-5:00</span></div><div class="card-body" id="sun_afternoon-blocks"></div></div>
+    <div class="card"><div class="card-header"><div class="icon icon-family">&#128106;</div><h3>Evening</h3><span class="time-label">5:00-11:00</span></div><div class="card-body" id="sun_evening-blocks"></div></div>
+  </div>
+  <div class="card-full"><div class="card-header"><div class="icon icon-teach">&#127891;</div><h3>Teaching Notes — Session 2</h3><span class="time-label">10:30 AM-12:00</span></div><div class="card-body">
+    <div class="teach-subject"><span class="teach-badge badge-physics">Physics</span><input class="teach-notes" type="text" id="sun_teach_physics" placeholder="Problems / doubts cleared..."><input class="teach-notes" type="text" id="sun_teach_physics_note" placeholder="Confidence level..." style="margin-left:7px"></div>
+    <div class="teach-subject"><span class="teach-badge badge-chemistry">Chemistry</span><input class="teach-notes" type="text" id="sun_teach_chem" placeholder="Problems / doubts cleared..."><input class="teach-notes" type="text" id="sun_teach_chem_note" placeholder="Confidence level..." style="margin-left:7px"></div>
+    <div class="field-label" style="margin-top:9px">Weekend teaching summary</div>
+    <textarea class="journal-field" id="sun_teach_obs" placeholder="Progress from Sat to Sun. What needs attention next weekend?" style="min-height:50px"></textarea>
+  </div></div>`;
+}
+
+function buildWkndJournal(isSat){
+  if(isSat) return `<div class="card-full"><div class="card-header"><div class="icon icon-journal">&#128211;</div><h3>Saturday Journal</h3></div><div class="card-body">
+    <div class="wknd-journal-grid">
+      <div><div class="field-label">&#128300; Lab session — what did I experiment/build/learn?</div><textarea class="journal-field" id="sat_lab_notes" placeholder="What I tried, what worked, what to explore next..." style="min-height:75px"></textarea>
+      <div class="field-label">&#127807; Garden observation</div><textarea class="journal-field" id="sat_garden_notes" placeholder="What's growing well, what needs attention..."></textarea></div>
+      <div><div class="field-label">&#128221; Best article insight this week</div><textarea class="journal-field" id="sat_article_insight" placeholder="One idea to remember or act on..."></textarea>
+      <div class="field-label">&#128197; Monday awareness</div><textarea class="journal-field" id="sat_monday_prep" placeholder="Not planning — just awareness of what needs attention..."></textarea></div>
+    </div>
+    <div class="field-label">&#127775; Gratitude</div><textarea class="journal-field" id="sat_gratitude" placeholder="One moment from today you're grateful for..." style="min-height:44px"></textarea>
+  </div></div>`;
+  return `<div class="card-full"><div class="card-header"><div class="icon icon-journal">&#128211;</div><h3>Sunday Deep Reflection</h3></div><div class="card-body">
+    <div class="wknd-journal-grid">
+      <div><div class="field-label">&#127807; What restored me most this weekend?</div><textarea class="journal-field" id="sun_restored" placeholder="Lab, garden, teaching, family time — what genuinely filled you back up?"></textarea>
+      <div class="field-label">&#127891; One thing I noticed about my daughter this weekend</div><textarea class="journal-field" id="sun_daughter_obs" placeholder="As her teacher and her father — what did you see?"></textarea></div>
+      <div><div class="field-label">&#128197; My leadership intention for the week ahead</div><textarea class="journal-field" id="sun_week_intent" placeholder="How do I want to show up Monday?"></textarea>
+      <div class="field-label">&#127775; One personal commitment for next week</div><textarea class="journal-field" id="sun_personal_commit" placeholder="Something for you — not work."></textarea></div>
+    </div>
+    <div class="field-label">&#127775; Gratitude</div><textarea class="journal-field" id="sun_gratitude" placeholder="A moment this weekend that reminded you what matters most..." style="min-height:44px"></textarea>
+  </div></div>`;
+}
+
+// ── LOAD DAY ───────────────────────────────────────────────
+window.loadDay=async function(){
+  const input=document.getElementById('currentDate');
+  currentDate=new Date(input.value+'T00:00:00');
+  const dayKey=getKey(currentDate);
+  const dow=currentDate.getDay();
+  const weekend=isWeekend(currentDate);
+  document.getElementById('dayLabel').textContent=currentDate.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('dayFocus').innerHTML=DAY_FOCUS[dow]||'';
+
+  const data=await loadData(dayKey);
+  const blockData=data.blocks||{};
+
+  const wdc=document.getElementById('weekdayContent');
+  const wkc=document.getElementById('weekendContent');
+
+  if(weekend){
+    wdc.style.display='none'; wkc.style.display='block';
+    wkc.innerHTML=buildWeekendHTML(dow);
+    if(dow===6){
+      renderBlocks('sat_morning-blocks',SAT_MORNING,dayKey,blockData);
+      renderBlocks('sat_work-blocks',SAT_WORK,dayKey,blockData);
+      renderBlocks('sat_lab-blocks',SAT_LAB,dayKey,blockData);
+      renderBlocks('sat_evening-blocks',SAT_EVENING,dayKey,blockData);
+    }else{
+      renderBlocks('sun_morning-blocks',SUN_MORNING,dayKey,blockData);
+      renderBlocks('sun_chores-blocks',SUN_CHORES,dayKey,blockData);
+      renderBlocks('sun_afternoon-blocks',SUN_AFTERNOON,dayKey,blockData);
+      renderBlocks('sun_evening-blocks',SUN_EVENING,dayKey,blockData);
+    }
+    const wkFields=dow===6
+      ?['sat_lab_notes','sat_garden_notes','sat_article_insight','sat_monday_prep','sat_gratitude','sat_teach_physics','sat_teach_physics_note','sat_teach_chem','sat_teach_chem_note','sat_teach_obs']
+      :['sun_restored','sun_daughter_obs','sun_week_intent','sun_personal_commit','sun_gratitude','sun_teach_physics','sun_teach_physics_note','sun_teach_chem','sun_teach_chem_note','sun_teach_obs'];
+    wkFields.forEach(f=>{const el=document.getElementById(f);if(el)el.value=data[f]||'';});
+    const pEl=document.getElementById('phaseDayNum');
+    if(pEl){const n=getPhaseDayNum(currentDate);pEl.textContent=n>0?'Day '+n:'Day 0';}
+  }else{
+    wkc.style.display='none'; wdc.style.display='block';
+    wdc.innerHTML=buildWeekdayHTML();
+    renderBlocks('morning-blocks',MORNING_BLOCKS,dayKey,blockData);
+    renderBlocks('deepwork-blocks',DEEPWORK_BLOCKS,dayKey,blockData);
+    renderBlocks('people-blocks',PEOPLE_BLOCKS,dayKey,blockData);
+    renderBlocks('evening-blocks',EVENING_BLOCKS,dayKey,blockData);
+    const n=getPhaseDayNum(currentDate); const phase=getPhaseInfo(n);
+    const pt=document.getElementById('phaseTitle');if(pt)pt.textContent=phase.title;
+    const pd=document.getElementById('phaseDesc');if(pd)pd.textContent=phase.desc;
+    const pdn=document.getElementById('phaseDayNum');if(pdn)pdn.textContent=n>0?'Day '+n:'Day 0';
+    ['p1','p2','p3','wins','personInvested','reading','improve','accountability','insight','gratitude','t1','t2','t3'].forEach(f=>{const el=document.getElementById(f);if(el)el.value=data[f]||'';});
+    [1,2,3].forEach(n=>{const el=document.getElementById('p'+n+'done');if(el){el.className='priority-done'+(data['p'+n+'done']?' checked':'');el.textContent=data['p'+n+'done']?'✓':'';}});
+  }
+  updateScoreUI(blockData,dow);
+};
+
+window.togglePriority=function(n){
+  const el=document.getElementById('p'+n+'done');if(!el)return;
+  const checked=!el.classList.contains('checked');
+  el.className='priority-done'+(checked?' checked':'');el.textContent=checked?'✓':'';
+  const dayKey=getKey(currentDate);
+  const data=JSON.parse(localStorage.getItem(dayKey)||'{}');
+  data['p'+n+'done']=checked;
+  saveData(dayKey,data);
+};
+
+window.saveDay=async function(){
+  const dayKey=getKey(currentDate);
+  const data=JSON.parse(localStorage.getItem(dayKey)||'{}');
+  const dow=currentDate.getDay();
+  const weekend=isWeekend(currentDate);
+  if(weekend){
+    const wkFields=dow===6
+      ?['sat_lab_notes','sat_garden_notes','sat_article_insight','sat_monday_prep','sat_gratitude','sat_teach_physics','sat_teach_physics_note','sat_teach_chem','sat_teach_chem_note','sat_teach_obs']
+      :['sun_restored','sun_daughter_obs','sun_week_intent','sun_personal_commit','sun_gratitude','sun_teach_physics','sun_teach_physics_note','sun_teach_chem','sun_teach_chem_note','sun_teach_obs'];
+    wkFields.forEach(f=>{const el=document.getElementById(f);if(el)data[f]=el.value;});
+  }else{
+    ['p1','p2','p3','wins','personInvested','reading','improve','accountability','insight','gratitude','t1','t2','t3'].forEach(f=>{const el=document.getElementById(f);if(el)data[f]=el.value;});
+  }
+  await saveData(dayKey,data);
+  const c=document.getElementById('saveConfirm');if(c){c.classList.add('show');setTimeout(()=>c.classList.remove('show'),2500);}
+};
+
+window.changeDate=function(delta){const d=new Date(currentDate);d.setDate(d.getDate()+delta);document.getElementById('currentDate').value=d.toISOString().split('T')[0];loadDay();};
+
+// ── WEEKLY ─────────────────────────────────────────────────
+window.loadWeekly=async function(){
+  const monday=new Date(currentWeekStart);
+  const sunday=new Date(monday);sunday.setDate(sunday.getDate()+6);
+  document.getElementById('weekTitle').textContent='Week of '+monday.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+  document.getElementById('weekRange').textContent=monday.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})+' — '+sunday.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const grid=document.getElementById('weekGrid');grid.innerHTML='';
+  for(let i=0;i<7;i++){
+    const d=new Date(monday);d.setDate(d.getDate()+i);
+    const key=getKey(d);const data=await loadData(key);
+    const dow=d.getDay();const wkend=isWeekend(d);
+    const {done,partial,total,score}=calcScore(data.blocks||{},dow);
+    const isToday=d.toDateString()===new Date().toDateString();
+    grid.innerHTML+='<div class="week-day-card '+(isToday?'today':'')+' '+(wkend?'is-weekend':'')+'" onclick="jumpToDay(\''+d.toISOString().split('T')[0]+'\')"><div class="week-day-header">'+days[i]+(wkend?' &#127807;':'')+'</div><div class="week-day-body"><div class="week-score">'+(score!==null?score+'%':'—')+'</div><div class="week-score-label">'+(total>0?done+' done · '+partial+' ~':'No entries')+'</div><div class="week-mini-bar"><div class="week-mini-fill" style="width:'+(score||0)+'%"></div></div></div></div>';
+  }
+  // Weekday checklist
+  const checklistEl=document.getElementById('weeklyChecklist');
+  const weekKey='wkchk_'+monday.toISOString().split('T')[0];
+  const wdata=await loadData(weekKey);
+  checklistEl.innerHTML='';
+  const wdNames=['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  wdNames.forEach((day,i)=>{
+    const dowKey=i+1;const items=WEEKLY_FOCUS[dowKey]||[];
+    checklistEl.innerHTML+='<div style="font-weight:600;font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin:11px 0 5px">'+day+'</div>';
+    items.forEach((item,j)=>{
+      const ck=dowKey+'_'+j;const checked=wdata[ck]||false;
+      checklistEl.innerHTML+='<div style="display:flex;align-items:flex-start;gap:9px;padding:6px 0;border-bottom:1px solid var(--cream)"><input type="checkbox" '+(checked?'checked':'')+' onchange="toggleWkChk(\''+weekKey+'\',\''+ck+'\',this.checked)" style="margin-top:2px;accent-color:var(--gold);cursor:pointer;width:14px;height:14px;flex-shrink:0"><span style="font-size:0.79rem;color:var(--ink);line-height:1.5">'+item+'</span></div>';
+    });
+  });
+  // Weekend checklist
+  const wkndEl=document.getElementById('weekendChecklist');
+  const wkndKey='wkndchk_'+monday.toISOString().split('T')[0];
+  const wkndData=await loadData(wkndKey);
+  wkndEl.innerHTML='';
+  for(const {dow,name} of [{dow:6,name:'Saturday'},{dow:0,name:'Sunday'}]){
+    const items=WEEKEND_CHECKLIST[dow]||[];
+    wkndEl.innerHTML+='<div style="font-weight:600;font-size:0.72rem;color:var(--sage);text-transform:uppercase;letter-spacing:0.4px;margin:11px 0 5px">'+name+'</div>';
+    items.forEach((item,j)=>{
+      const ck=dow+'_'+j;const checked=wkndData[ck]||false;
+      wkndEl.innerHTML+='<div style="display:flex;align-items:flex-start;gap:9px;padding:6px 0;border-bottom:1px solid var(--cream)"><input type="checkbox" '+(checked?'checked':'')+' onchange="toggleWkndChk(\''+wkndKey+'\',\''+ck+'\',this.checked)" style="margin-top:2px;accent-color:var(--sage);cursor:pointer;width:14px;height:14px;flex-shrink:0"><span style="font-size:0.79rem;color:var(--ink);line-height:1.5">'+item+'</span></div>';
+    });
+  }
+  const wref=await loadData('wkref_'+monday.toISOString().split('T')[0]);
+  ['weekWins','weekPeople','weekStuck','weekAvoid','weekNext'].forEach(f=>{const el=document.getElementById(f);if(el)el.value=wref[f]||'';});
+};
+
+window.toggleWkChk=async function(key,ck,val){const data=await loadData(key);data[ck]=val;await saveData(key,data);};
+window.toggleWkndChk=async function(key,ck,val){const data=await loadData(key);data[ck]=val;await saveData(key,data);};
+window.changeWeek=function(delta){currentWeekStart.setDate(currentWeekStart.getDate()+delta*7);loadWeekly();};
+window.jumpToDay=function(dateStr){document.getElementById('currentDate').value=dateStr;switchView('daily');loadDay();};
+window.saveWeekly=async function(){
+  const monday=new Date(currentWeekStart);const key='wkref_'+monday.toISOString().split('T')[0];const data={};
+  ['weekWins','weekPeople','weekStuck','weekAvoid','weekNext'].forEach(f=>{const el=document.getElementById(f);if(el)data[f]=el.value;});
+  await saveData(key,data);
+  const c=document.getElementById('saveWeekConfirm');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),2500);
+};
+
+// ── MONTHLY ────────────────────────────────────────────────
+window.loadMonthly=async function(){
+  const y=currentMonth.getFullYear();const m=currentMonth.getMonth();
+  document.getElementById('monthTitle').textContent=new Date(y,m,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const firstDay=new Date(y,m,1);const lastDay=new Date(y,m+1,0);
+  const startDow=firstDay.getDay()===0?6:firstDay.getDay()-1;
+  const grid=document.getElementById('calendarGrid');
+  grid.innerHTML=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(h=>'<div class="cal-header">'+h+'</div>').join('');
+  for(let i=0;i<startDow;i++) grid.innerHTML+='<div class="cal-day empty"></div>';
+  let tDone=0,tMissed=0,tEntries=0,tScore=0;
+  for(let d=1;d<=lastDay.getDate();d++){
+    const date=new Date(y,m,d);const key=getKey(date);const dow=date.getDay();
+    const data=JSON.parse(localStorage.getItem(key)||'{}');
+    const {done,partial,total,score}=calcScore(data.blocks||{},dow);
+    const isToday=date.toDateString()===new Date().toDateString();
+    const wkend=isWeekend(date);
+    let dotClass='';
+    if(score!==null){dotClass=score>=75?'dot-green':score>=40?'dot-amber':'dot-red';tEntries++;tScore+=score;if(dotClass==='dot-green')tDone++;if(dotClass==='dot-red')tMissed++;}
+    grid.innerHTML+='<div class="cal-day '+(isToday?'today':'')+' '+(wkend?'is-weekend-cal':'')+'" onclick="jumpToDay(\''+date.toISOString().split('T')[0]+'\')" title="'+(score!==null?score+'%':wkend?'Weekend':'No entry')+'">'+d+(dotClass?'<div class="cal-dot '+dotClass+'"></div>':'')+'</div>';
+  }
+  const avg=tEntries>0?Math.round(tScore/tEntries):0;
+  document.getElementById('monthlyStats').innerHTML='<div class="stat-card"><div class="stat-num">'+tEntries+'</div><div class="stat-label">Days Tracked</div></div><div class="stat-card"><div class="stat-num">'+(avg>0?avg+'%':'—')+'</div><div class="stat-label">Avg Adherence</div></div><div class="stat-card"><div class="stat-num">'+tDone+'</div><div class="stat-label">Green Days</div></div><div class="stat-card"><div class="stat-num">'+tMissed+'</div><div class="stat-label">Red Days</div></div>';
+  const auditKey='audit_'+y+'_'+m;const auditData=await loadData(auditKey);
+  const auditBody=document.getElementById('auditBody');auditBody.innerHTML='';
+  DIRECT_REPORTS.forEach(p=>{
+    const pkey=p.name.toLowerCase();
+    auditBody.innerHTML+='<div class="audit-person"><div><div class="audit-name">'+p.name+'</div><div class="audit-role">'+p.role+'</div></div><div><div class="audit-field-label">Growth this month</div><textarea class="audit-textarea" id="audit_'+pkey+'_growth" placeholder="Specific growth observation...">'+((auditData[pkey+'_growth'])||'')+'</textarea></div><div><div class="audit-field-label">What do they need from me?</div><textarea class="audit-textarea" id="audit_'+pkey+'_need" placeholder="One door, one conversation...">'+((auditData[pkey+'_need'])||'')+'</textarea></div></div>';
+  });
+  const checklistEl=document.getElementById('monthlyChecklist');const mcheckKey='mchk_'+y+'_'+m;
+  const mdata=await loadData(mcheckKey);checklistEl.innerHTML='';
+  const weekLabels=['Week 1 — Vision & Communication','Week 2 — Career Development','Week 3 — Business Immersion','Week 4 — Leadership Audit'];
+  [1,2,3,4].forEach(w=>{
+    checklistEl.innerHTML+='<div style="font-weight:600;font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin:11px 0 5px">'+weekLabels[w-1]+'</div>';
+    (MONTHLY_CHECKLIST[w]||[]).forEach((item,j)=>{
+      const ck=w+'_'+j;const checked=mdata[ck]||false;
+      checklistEl.innerHTML+='<div style="display:flex;align-items:flex-start;gap:9px;padding:6px 0;border-bottom:1px solid var(--cream)"><input type="checkbox" '+(checked?'checked':'')+' onchange="toggleMChk(\''+mcheckKey+'\',\''+ck+'\',this.checked)" style="margin-top:2px;accent-color:var(--gold);cursor:pointer;width:14px;height:14px;flex-shrink:0"><span style="font-size:0.79rem;color:var(--ink);line-height:1.5">'+item+'</span></div>';
+    });
+  });
+  const mref=await loadData('mref_'+y+'_'+m);
+  ['monthVision','monthImmersion','monthCulture','monthImprove'].forEach(f=>{const el=document.getElementById(f);if(el)el.value=mref[f]||'';});
+  [1,2,3].forEach(n=>{const s=localStorage.getItem('book'+n+'status')||'pending';const btn=document.getElementById('book'+n+'status');if(btn){btn.textContent=s==='reading'?'Reading Now':s==='done'?'Completed ✓':'Not Started';btn.className='book-status '+(s==='reading'?'status-reading':s==='done'?'status-done':'status-pending');}});
+};
+
+window.toggleMChk=async function(key,ck,val){const data=await loadData(key);data[ck]=val;await saveData(key,data);};
+window.toggleBook=function(n){
+  const cycle={'pending':'reading','reading':'done','done':'pending'};
+  const current=localStorage.getItem('book'+n+'status')||'pending';const next=cycle[current];
+  localStorage.setItem('book'+n+'status',next);
+  const btn=document.getElementById('book'+n+'status');
+  btn.textContent=next==='reading'?'Reading Now':next==='done'?'Completed ✓':'Not Started';
+  btn.className='book-status '+(next==='reading'?'status-reading':next==='done'?'status-done':'status-pending');
+};
+window.changeMonth=function(delta){currentMonth.setMonth(currentMonth.getMonth()+delta);loadMonthly();};
+window.saveMonthly=async function(){
+  const y=currentMonth.getFullYear();const m=currentMonth.getMonth();
+  const auditKey='audit_'+y+'_'+m;const auditData={};
+  DIRECT_REPORTS.forEach(p=>{const pkey=p.name.toLowerCase();['growth','need'].forEach(field=>{const el=document.getElementById('audit_'+pkey+'_'+field);if(el)auditData[pkey+'_'+field]=el.value;});});
+  await saveData(auditKey,auditData);
+  const mref={};
+  ['monthVision','monthImmersion','monthCulture','monthImprove'].forEach(f=>{const el=document.getElementById(f);if(el)mref[f]=el.value;});
+  await saveData('mref_'+y+'_'+m,mref);
+  const c=document.getElementById('saveMonthConfirm');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),2500);
+};
+
+// ── VIEW SWITCHING ─────────────────────────────────────────
+window.switchView=function(view){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.bnav-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.getElementById('bnav-'+view).classList.add('active');
+  if(view==='weekly') loadWeekly();
+  if(view==='monthly') loadMonthly();
+};
+
+// ── INIT ───────────────────────────────────────────────────
+window.onload=function(){
+  // Register service worker
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  }
+  const today=new Date();
+  document.getElementById('currentDate').value=today.toISOString().split('T')[0];
+  currentWeekStart=getMonday(new Date());
+  currentMonth=new Date(today.getFullYear(),today.getMonth(),1);
+  if(checkSetup()){
+    // Auth state will trigger loadDay
+  }
+};
+</script>
+</body>
+</html>
