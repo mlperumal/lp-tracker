@@ -540,8 +540,8 @@ function checkSetup(){
         showToast('Signed in as '+result.user.displayName);
       }
     }).catch(e=>{
-      if(e.code!=='auth/no-current-user'){
-        showToast('Sign-in error: '+e.message);
+      if(e.code!=='auth/no-current-user' && e.code!=='auth/null-user'){
+        alert('Redirect sign-in error:\nCode: '+e.code+'\nMessage: '+e.message+'\n\nCheck Firebase Console → Authentication → Settings → Authorized domains and make sure your GitHub Pages domain is listed.');
       }
     });
 
@@ -621,9 +621,14 @@ window.handleSignIn=async function(){
   }
   try{
     const provider=new GoogleAuthProvider();
-    showToast('Redirecting to Google sign-in...');
+    provider.setCustomParameters({prompt:'select_account'});
+    showToast('Redirecting to Google...');
     await signInWithRedirect(auth,provider);
-  }catch(e){ showToast('Sign-in error: '+e.message); }
+  }catch(e){ 
+    showToast('Error: '+e.code+' — '+e.message); 
+    // Also show in a visible alert so it's not missed
+    alert('Sign-in error:\nCode: '+e.code+'\nMessage: '+e.message);
+  }
 };
 
 // ── STORAGE: Firebase + localStorage fallback ──────────────
